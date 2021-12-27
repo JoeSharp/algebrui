@@ -3,6 +3,12 @@ import Expression, { DEFAULT_EXPRESSION } from "./Expression";
 import Term from './Term';
 import IMathML from "./IMathML";
 
+export enum EquationSide {
+    left,
+    right,
+    both
+}
+
 class Equation implements IMathML {
     left: Expression;
     right: Expression;
@@ -23,8 +29,19 @@ class Equation implements IMathML {
         return this;
     }
 
-    addTerm(term: Term): Equation {
-        this.left.addTerm(term);
+    addTerm(term: Term, side: EquationSide = EquationSide.both): Equation {
+        switch (side) {
+            case EquationSide.both:
+                this.left.addTerm(term);
+                this.right.addTerm(term);
+                break;
+            case EquationSide.left:
+                this.left.addTerm(term);
+                break;
+            case EquationSide.right:
+                this.right.addTerm(term);
+                break;
+        }
         return this;
     }
 

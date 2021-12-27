@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button, Form, FormGroup } from 'react-bootstrap';
-import Term from '../model/Term';
-import Variable from '../model/Variable';
+import { Term, Variable } from '../model';
+import TermVariableBuilder from './TermVariableBuilder';
 
 interface Props {
     onCommit: (term: Term) => void;
@@ -61,27 +61,22 @@ const variableReducer = (state: VariablesState, action: VariableAction): Variabl
 }
 
 const TermBuilder: React.FunctionComponent<Props> = ({ onCommit }) => {
+    // Variable Reducer, and the associated callbacks
     const [{ variables }, dispatchVariables] = React.useReducer(variableReducer, INITIAL_VARIABLES_STATE);
-    const [coefficient, setCoefficient] = React.useState<number>(1);
+    const onAddVariable = React.useCallback(() => dispatchVariables({ type: 'add' }), []);
+    const onUpdateVariable = React.useCallback((letter: string, power: number) => dispatchVariables({ type: 'update', letter, power }), [])
+    const onRemoveVariable = React.useCallback((letter: string) => dispatchVariables({ type: 'remove', letter }), [])
 
+    // Editing the coefficient
+    const [coefficient, setCoefficient] = React.useState<number>(1);
     const onCoefficientChange: React.ChangeEventHandler<HTMLInputElement> = React.useCallback(
         ({ target: { value } }) => setCoefficient(parseInt(value)),
         [])
 
+    // Confirming this term can be added to whatever owns this component
     const onClickCommit = React.useCallback(
         () => onCommit(new Term(coefficient, variables)),
         [coefficient, variables, onCommit])
-
-    const onAddVariable = React.useCallback(() => dispatchVariables({ type: 'add' }), []);
-
-    const variableHandlers = React.useMemo(() =>
-        variables.map(variable => ({
-            variable,
-            key: `variable-${variable.letter}`,
-            onRemove: () => dispatchVariables({ type: 'remove', letter: variable.letter }),
-            onUpdate: ({ target: { value } }: React.ChangeEvent<HTMLInputElement>) =>
-                dispatchVariables({ type: 'update', letter: variable.letter, power: parseInt(value) })
-        })), [variables])
 
     return <>
         <Form>
@@ -90,19 +85,18 @@ const TermBuilder: React.FunctionComponent<Props> = ({ onCommit }) => {
                 <input className='form-control' name='coeff' type='number' onChange={onCoefficientChange} value={coefficient} />
             </FormGroup>
 
-            {variableHandlers.map(({ key, variable: { letter, power }, onRemove, onUpdate }) => (
-                <React.Fragment key={key}>
-                    <FormGroup>
-                        <label htmlFor={key}>{letter}</label>
-                        <input className='form-control' name={key} type='number' onChange={onUpdate} value={power} />
-                    </FormGroup>
-                    <Button onClick={onRemove}>remove</Button>
-                </React.Fragment>
+            {variables.map(variable => (
+                <TermVariableBuilder
+                    key={`variable-${variable.letter}`}
+                    variable={variable}
+                    onRemove={onRemoveVariable}
+                    onUpdate={onUpdateVariable}
+                />
             ))}
 
             <Button onClick={onAddVariable}>Add Variable</Button>
         </Form>
-        <Button onClick={onClickCommit}>Add</Button>
+        <Button onClick={onClickCommit}>Add Term</Button>
     </>
 }
 
