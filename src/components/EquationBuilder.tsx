@@ -10,36 +10,63 @@ import {
 } from '../model';
 import TermBuilder from '../components/TermBuilder';
 import EquationSideSelector from './EquationSideSelector';
+import TagBuilder, { getColorTag } from '../model/TagBuilder';
+import Tree, { Direction } from '../model/Tree';
 
 interface Props {
 
 }
 
-interface AddTerm {
+interface AddTermAction {
     type: 'addTerm',
     term: Term,
     equationSide: EquationSide
 }
 
-type EquationAction = AddTerm;
+interface NavigateAction {
+    type: 'navigate',
+    direction: Direction
+}
+
+type EquationAction = AddTermAction | NavigateAction;
 
 interface EquationState {
+    selectedUuid: string | undefined;
     equation: Equation,
     mathml: string;
 }
 
-const equationReducer = (state: EquationState, action: EquationAction): EquationState => {
-    const equation = state.equation.copy();
+const ROOT_UUID = 'root';
 
-    switch (action.type) {
-        case 'addTerm':
-            equation.addTerm(action.term, action.equationSide);
-            break;
+const equationReducer = (state: EquationState, action: EquationAction): EquationState => {
+    // We will use the existing equation if we can
+    let equation = state.equation;
+    let selectedUuid = state.selectedUuid;
+
+    if (action.type === 'addTerm') {
+        // Create a copy of the equation if we are modifying it
+        equation = state.equation.copy();
+        equation.addTerm(action.term, action.equationSide);
+    }
+    // Regenerate the Math ML tag tree
+    let mathMLTag = equation.buildTag();
+
+    if (action.type === 'navigate') {
+        const tree: Tree = equation.generateTree();
+        selectedUuid = tree.navigate(selectedUuid, action.direction);
     }
 
+    // Wrap the selected item so it is styled red
+    mathMLTag = mathMLTag.findAndWrap(selectedUuid, getColorTag('red'));
+    const mathml = new TagBuilder('math')
+        .withUuid(ROOT_UUID)
+        .withChild(mathMLTag)
+        .generateXML();
+
     return {
+        selectedUuid,
         equation,
-        mathml: `<math><mtable>${equation.generateMathML()}</mtable></math>`
+        mathml
     };
 }
 
@@ -62,8 +89,13 @@ const INITIAL_EQUATION: Equation = new Equation()
     );
 
 const INITAL_EQUATION_STATE: EquationState = {
+    selectedUuid: undefined,
     equation: INITIAL_EQUATION,
-    mathml: `<math><mtable>${INITIAL_EQUATION.generateMathML()}</mtable></math>`
+    mathml: new TagBuilder('math').withChild(
+        new TagBuilder('mtable').withChild(
+            INITIAL_EQUATION.buildTag()
+        )
+    ).generateXML()
 }
 
 const EquationBuilder: React.FunctionComponent<Props> = () => {
@@ -80,6 +112,29 @@ const EquationBuilder: React.FunctionComponent<Props> = () => {
         })
     }, [equationSide]);
 
+    React.useEffect(() => {
+        const keyDown = ({ key }: KeyboardEvent) => {
+            switch (key) {
+                case 'ArrowUp':
+                    dispatch({ type: 'navigate', direction: Direction.up })
+                    break;
+                case 'ArrowDown':
+                    dispatch({ type: 'navigate', direction: Direction.down })
+                    break;
+                case 'ArrowLeft':
+                    dispatch({ type: 'navigate', direction: Direction.left })
+                    break;
+                case 'ArrowRight':
+                    dispatch({ type: 'navigate', direction: Direction.right })
+                    break;
+            }
+        };
+        document.addEventListener('keydown', keyDown);
+
+        return () => {
+            document.removeEventListener('keydown', keyDown)
+        }
+    }, [])
 
     return (<>
         <MathComponent mathml={mathml} />

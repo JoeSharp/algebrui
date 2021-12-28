@@ -1,11 +1,14 @@
-import IMathML from "./IMathML";
+import MathMLModel from "./MathMLModel";
+import TagBuilder from "./TagBuilder";
+import Tree from "./Tree";
 import Variable from "./Variable";
 
-class Term implements IMathML {
+class Term extends MathMLModel {
     coefficient: number;
     variables: Variable[];
 
     constructor(coefficient: number = 1, variables: Variable[] = []) {
+        super();
         this.coefficient = coefficient;
         this.variables = variables.map(v => v.copy());
     }
@@ -15,16 +18,27 @@ class Term implements IMathML {
         return this;
     }
 
-    copy(): Term {
-        return new Term(this.coefficient, this.variables);
+    generateTree(): Tree {
+        return new Tree(this.uuid).withChildren(...this.variables.map(v => v.generateTree()));
     }
 
-    generateMathML(): string {
-        let sign = this.coefficient > 0 ? '+' : '-';
-        let coeff = (this.coefficient === 1 && this.variables.length > 0) ? '' : `<mn>${this.coefficient}</mn>`;
-        let variables = this.variables.map(v => v.generateMathML()).join('');
+    copy(): Term {
+        return new Term(this.coefficient, this.variables).withUuid(this.uuid);
+    }
 
-        return `<mo>${sign}</mo>${coeff}${variables}`;
+    buildTag(): TagBuilder {
+        return new TagBuilder()
+            .withUuid(this.uuid)
+            .withChild(new TagBuilder('mo')
+                .withUuid(`${this.uuid}-sign`)
+                .withContents(this.coefficient > 0 ? '+' : '-'))
+            .withOptionalChild(this.coefficient !== 1 || this.variables.length === 0,
+                new TagBuilder('mn')
+                    .withUuid(`${this.uuid}-coeff`)
+                    .withContents(this.coefficient.toString(10)))
+            .withChildren(
+                this.variables.map(v => v.buildTag())
+            );
     }
 }
 

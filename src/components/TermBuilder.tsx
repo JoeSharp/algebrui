@@ -87,7 +87,7 @@ const TermBuilder: React.FunctionComponent<Props> = ({ onCommit }) => {
 
             {variables.map(variable => (
                 <TermVariableBuilder
-                    key={`variable-${variable.letter}`}
+                    key={variable.uuid}
                     variable={variable}
                     onRemove={onRemoveVariable}
                     onUpdate={onUpdateVariable}

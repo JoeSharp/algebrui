@@ -1,10 +1,13 @@
-import IMathML from "./IMathML";
+import MathMLModel from "./MathMLModel";
+import TagBuilder from "./TagBuilder";
 import Term from "./Term";
+import Tree from "./Tree";
 
-class Expression implements IMathML {
+class Expression extends MathMLModel {
     terms: Term[];
 
     constructor(terms: Term[] = []) {
+        super();
         this.terms = terms.map(t => t.copy());
     }
 
@@ -13,12 +16,18 @@ class Expression implements IMathML {
         return this;
     }
 
-    generateMathML(): string {
-        return `<mtd>${this.terms.map(t => t.generateMathML()).join('')}</mtd>`;
+    buildTag(): TagBuilder {
+        return new TagBuilder('mrow')
+            .withUuid(this.uuid)
+            .withChildren(this.terms.map(t => t.buildTag()));
+    }
+
+    generateTree(): Tree {
+        return new Tree(this.uuid).withChildren(...this.terms.map(t => t.generateTree()));
     }
 
     copy(): Expression {
-        return new Expression(this.terms);
+        return new Expression(this.terms).withUuid(this.uuid);
     }
 }
 

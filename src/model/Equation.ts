@@ -1,7 +1,9 @@
 
 import Expression, { DEFAULT_EXPRESSION } from "./Expression";
 import Term from './Term';
-import IMathML from "./IMathML";
+import TagBuilder from "./TagBuilder";
+import MathMLModel from "./MathMLModel";
+import Tree from "./Tree";
 
 export enum EquationSide {
     left,
@@ -9,12 +11,13 @@ export enum EquationSide {
     both
 }
 
-class Equation implements IMathML {
+class Equation extends MathMLModel {
     left: Expression;
     right: Expression;
 
     constructor(left: Expression = DEFAULT_EXPRESSION,
         right: Expression = DEFAULT_EXPRESSION) {
+        super();
         this.left = left.copy();
         this.right = right.copy();
     }
@@ -45,16 +48,25 @@ class Equation implements IMathML {
         return this;
     }
 
-    copy() {
-        return new Equation(this.left, this.right);
+    generateTree(): Tree {
+        return new Tree(this.uuid)
+            .withChild(this.left.generateTree())
+            .withChild(this.right.generateTree());
     }
 
-    generateMathML() {
-        return `<mtr>
-            ${this.left.generateMathML()}
-            <mo>=</mo>
-            ${this.right.generateMathML()}
-        </mtr>`
+    copy() {
+        return new Equation(this.left, this.right)
+            .withUuid(this.uuid);
+    }
+
+    buildTag(): TagBuilder {
+        return new TagBuilder('mrow')
+            .withUuid(this.uuid)
+            .withChild(this.left.buildTag())
+            .withChild(new TagBuilder('mo')
+                .withUuid(`${this.uuid}-equals`)
+                .withContents('='))
+            .withChild(this.right.buildTag());
     }
 }
 
